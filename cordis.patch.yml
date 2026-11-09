@@ -1,0 +1,12 @@
+# Bundle patch layer: the row loads the package's main entry as the host half
+# (a plain Cordis plugin); the `dsh.client` declaration makes the web app load
+# its ./client bundle as the browser half.
+- insert:
+    - id: global-memory
+      name: '@neko233/dsh-plugin-global-memory'
+      config:
+        enabled: true
+        announceToAgent: true
+        promptMaxEntries: 12
+        promptMaxChars: 3200
+        includeProjectEntries: true

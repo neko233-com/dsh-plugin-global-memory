@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "全局记忆 (dsh-plugin-global-memory)",
+    "description": "区分个人全局资产与项目级事实的持久记忆：索引按需加载、安全凭据、健康度、导入导出与 Git 云同步。"
+  }
+}

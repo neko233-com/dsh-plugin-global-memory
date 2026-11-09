@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Global Memory (dsh-plugin-global-memory)",
+    "description": "Persistent memory with global personal assets and project-scoped facts, on-demand index loading, secure credentials, health, import/export, and Git sync."
+  }
+}
