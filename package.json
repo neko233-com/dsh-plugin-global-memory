@@ -34,6 +34,14 @@
   "engines": {
     "node": ">=20"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neko233-com/dsh-plugin-global-memory.git"
+  },
+  "homepage": "https://github.com/neko233-com/dsh-plugin-global-memory#readme",
+  "bugs": {
+    "url": "https://github.com/neko233-com/dsh-plugin-global-memory/issues"
+  },
   "keywords": [
     "deepseek-harness",
     "dsh",
