@@ -71,12 +71,29 @@
 
 ## 安装
 
-本插件是一个普通的 DSH bundle，不需要构建步骤（纯 ESM JavaScript）。
+本插件是一个普通的 DSH bundle，不需要构建步骤（纯 ESM JavaScript），也不需要 npm 发布。
+
+### 从 GitHub 安装（推荐）
+
+在 DSH 的插件管理中选择「安装 bundle」，安装目标填：
+
+```text
+github:neko233-com/dsh-plugin-global-memory
+```
+
+或者使用仓库地址：
+
+```text
+https://github.com/neko233-com/dsh-plugin-global-memory
+```
+
+安装完成后重启 DSH（或按 DSH 提示重启），刷新 Web GUI。侧边栏会出现「全局记忆」图标，主面板可以打开完整管理页。
+
+### 本地开发安装
 
 1. 把本目录放在任意位置（推荐 `D:\Code\neko233-Projects\dsh-plugin-global-memory`）。
 2. 在 DSH 的插件管理中使用「安装本地 bundle」，安装目标指向本目录的 **绝对路径**。
-3. 安装后重启 DSH（或按 DSH 提示重启），刷新 Web GUI。
-4. 侧边栏会出现「全局记忆」图标；主面板可以打开完整管理页。
+3. 安装后重启 DSH，刷新 Web GUI。
 
 包清单已经包含：
 
@@ -95,20 +112,8 @@
 
 - GitHub：<https://github.com/neko233-com/dsh-plugin-global-memory>
 - Release：<https://github.com/neko233-com/dsh-plugin-global-memory/releases/tag/v0.4.0>
-- npm 包名：`@neko233/dsh-plugin-global-memory`
 
-npm 首次发布需要本机先登录：
-
-```bash
-npm login
-npm publish --access public
-```
-
-仓库内的 `.github/workflows/publish.yml` 也支持在 GitHub Release 发布时自动发包；需要在仓库 Secrets 中配置 `NPM_TOKEN`。发布前可先检查包内容：
-
-```bash
-npm pack --dry-run
-```
+发布以 Git 仓库为唯一分发渠道，不依赖 npm registry。
 
 ---
 
