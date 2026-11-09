@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
     const h = React.createElement
     const NS = 'global-memory'
     const API = '/api/global-memory'
-    const VERSION = '0.4.0'
+    const VERSION = '0.5.0'
 
     // -------------------------------------------------------------------------
     // Text
@@ -52,6 +52,9 @@ window.__ModuleLoader__.load({
       'search.placeholder': 'Search title, content, tags…',
       'filter.allKinds': 'All kinds',
       'filter.allScopes': 'All scopes',
+      'filter.allWorkspaces': 'All workspaces',
+      'filter.currentWorkspace': 'Current project',
+      'filter.workspaceCount': '{count} entries',
       'filter.statusActive': 'Active',
       'filter.statusArchived': 'Archived',
       'filter.statusAll': 'All',
@@ -78,6 +81,7 @@ window.__ModuleLoader__.load({
       'counts.active': '{count} active',
       'counts.pinned': '{count} pinned',
       'counts.projects': '{count} project',
+      'counts.workspaces': '{count} workspaces',
       'counts.currentProject': 'Project scope: {project}',
       'counts.archived': '{count} archived',
       'health.title': 'Memory health',
@@ -255,6 +259,9 @@ window.__ModuleLoader__.load({
       'search.placeholder': '搜索标题、内容、标签…',
       'filter.allKinds': '全部类型',
       'filter.allScopes': '全部范围',
+      'filter.allWorkspaces': '全部工作区',
+      'filter.currentWorkspace': '当前项目',
+      'filter.workspaceCount': '{count} 条',
       'filter.statusActive': '活跃',
       'filter.statusArchived': '已归档',
       'filter.statusAll': '全部',
@@ -281,6 +288,7 @@ window.__ModuleLoader__.load({
       'counts.active': '{count} 条活跃',
       'counts.pinned': '{count} 条固定',
       'counts.projects': '{count} 条项目',
+      'counts.workspaces': '{count} 个工作区',
       'counts.currentProject': '项目范围：{project}',
       'counts.archived': '{count} 条归档',
       'health.title': '记忆健康度',
@@ -458,6 +466,19 @@ window.__ModuleLoader__.load({
       if (!value) return ''
       const parts = String(value).split(/[\\/]/).filter(Boolean)
       return parts[parts.length - 1] || String(value)
+    }
+
+    function normalizeProjectPath(value) {
+      const text = String(value ?? '').trim()
+      if (text === '') return ''
+      const slash = text.replace(/\\/g, '/').replace(/\/+$/, '')
+      return /^[A-Za-z]:\//.test(slash) ? slash.toLowerCase() : slash
+    }
+
+    function sameProject(left, right) {
+      const a = normalizeProjectPath(left)
+      const b = normalizeProjectPath(right)
+      return a !== '' && b !== '' && a === b
     }
 
     function formatDate(value) {
@@ -847,6 +868,7 @@ window.__ModuleLoader__.load({
         const [query, setQuery] = React.useState('')
         const [kindFilter, setKindFilter] = React.useState('')
         const [scopeFilter, setScopeFilter] = React.useState('')
+        const [projectFilter, setProjectFilter] = React.useState('')
         const [statusFilter, setStatusFilter] = React.useState('active')
         const [reviewOnly, setReviewOnly] = React.useState(false)
         const [sortMode, setSortMode] = React.useState('priority')
@@ -960,6 +982,8 @@ window.__ModuleLoader__.load({
         }, [])
 
         const entries = state?.entries ?? []
+        const projects = state?.projects ?? []
+        const currentProject = state?.currentProject ?? ''
         const stats = state?.stats ?? { active: 0, archived: 0, pinned: 0, projects: 0 }
         const health = state?.health ?? null
         const git = state?.git ?? null
@@ -976,6 +1000,10 @@ window.__ModuleLoader__.load({
               if (statusFilter !== 'all' && entry.status !== statusFilter) return false
               if (kindFilter !== '' && entry.kind !== kindFilter) return false
               if (scopeFilter !== '' && entry.scope !== scopeFilter) return false
+              if (projectFilter !== '') {
+                const target = projectFilter === '__current__' ? currentProject : projectFilter
+                if (entry.scope !== 'project' || !sameProject(entry.project, target)) return false
+              }
               if (reviewOnly && (!needsReview(entry) || entry.status !== 'active')) return false
               if (needle !== '') {
                 const haystack = [entry.title, entry.content, entry.kind, entry.scope, entry.project ?? '', entry.tags.join(' ')]
@@ -986,7 +1014,7 @@ window.__ModuleLoader__.load({
               return true
             })
           return sortEntries(list, sortMode)
-        }, [state, query, kindFilter, scopeFilter, statusFilter, reviewOnly, sortMode])
+        }, [state, query, kindFilter, scopeFilter, projectFilter, statusFilter, reviewOnly, sortMode, currentProject])
 
         React.useEffect(() => {
           if (draft !== null) return
@@ -1273,6 +1301,7 @@ window.__ModuleLoader__.load({
             h('span', { className: 'gm-count' }, fmt(t('counts.active'), { count: stats.active })),
             h('span', { className: 'gm-count' }, fmt(t('counts.pinned'), { count: stats.pinned })),
             h('span', { className: 'gm-count' }, fmt(t('counts.projects'), { count: stats.projects })),
+            projects.length > 0 ? h('span', { className: 'gm-count' }, fmt(t('counts.workspaces'), { count: projects.length })) : null,
             state?.currentProject
               ? h('span', { className: 'gm-count', title: state.currentProject }, fmt(t('counts.currentProject'), { project: projectName(state.currentProject) }))
               : null,
@@ -1328,6 +1357,16 @@ window.__ModuleLoader__.load({
                   h('option', { value: 'global' }, t('scope.global')),
                   h('option', { value: 'project' }, t('scope.project')),
                 ),
+              ),
+              h('select', {
+                className: 'gm-select',
+                value: projectFilter,
+                title: t('filter.allWorkspaces'),
+                onChange: event => setProjectFilter(event.target.value),
+              },
+                h('option', { value: '' }, t('filter.allWorkspaces')),
+                currentProject ? h('option', { value: '__current__' }, `${t('filter.currentWorkspace')} · ${projectName(currentProject)}`) : null,
+                ...projects.map(row => h('option', { key: row.path, value: row.path }, `${row.label} · ${row.active}`)),
               ),
               h('div', { className: 'gm-segmented' },
                 h('button', { type: 'button', className: statusFilter === 'active' ? 'gm-seg-active' : '', onClick: () => setStatusFilter('active') }, t('filter.statusActive')),

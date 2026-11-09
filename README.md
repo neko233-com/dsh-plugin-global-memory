@@ -9,7 +9,7 @@
 
 记忆采用 **目录 + 索引 + 每条一个 Markdown 文件** 的结构：系统提示词里只注入当前范围（全局 + 当前项目）的索引，需要细节时 Agent 再按需读取对应文件。这样既能跨项目共享，又不会把整份记忆塞进每次请求。
 
-插件 ID：`@neko233/dsh-plugin-global-memory` · 版本 `0.4.0` · 许可证 MIT
+插件 ID：`@neko233/dsh-plugin-global-memory` · 版本 `0.5.0` · 许可证 MIT
 
 ---
 
@@ -46,6 +46,22 @@
 - `memory` 工具的 `search` / `list` 默认同样按当前项目过滤；显式传 `scope` / `project` 可查看或搜索其他项目。
 - 面板会显示当前项目范围，列表中的项目条目带项目名徽标。
 - 把一个全局条目改成项目条目，或反过来，会立即影响下一次提示词组装。
+- 提示词会显示“其他工作区还有多少条记忆”，但**不显示标题或正文**；需要时再搜索。
+
+### 跨 workspace 浏览
+
+记忆库本身是全局的，项目范围只是条目上的一个字段。因此可以跨工作区查询，而不会把别的项目内容默认注入当前提示词：
+
+```text
+memory action="search" query="Redis" allProjects=true
+memory action="search" query="部署" project="D:\\Code\\Poko-Projects\\server-project-sf-go"
+memory action="get" id="gm_xxx"            # 按 id 读取任意项目的完整正文
+```
+
+- `allProjects=true` 或 `project="*"`：搜索所有工作区（仍会带上全局条目）。
+- 显式 `project` 路径：只看该工作区 + 全局条目。
+- 面板搜索框下方的“全部工作区 / 当前项目 / 某工作区”下拉框用于浏览；默认显示全部，选中项目后只看该项目。
+- 跨工作区搜索只返回索引行；正文仍要 `get` / `read` 按需读取。
 
 ---
 
@@ -111,7 +127,7 @@ https://github.com/neko233-com/dsh-plugin-global-memory
 ### 公开发布
 
 - GitHub：<https://github.com/neko233-com/dsh-plugin-global-memory>
-- Release：<https://github.com/neko233-com/dsh-plugin-global-memory/releases/tag/v0.4.0>
+- Release：<https://github.com/neko233-com/dsh-plugin-global-memory/releases/tag/v0.5.0>
 
 发布以 Git 仓库为唯一分发渠道，不依赖 npm registry。
 
@@ -306,7 +322,7 @@ memory action=stats
 
 | 动作 | 用途 |
 | --- | --- |
-| `search` / `list` | 搜索或列出条目；只返回索引行（标题、类型、标签、ID），默认 20 条。 |
+| `search` / `list` | 搜索或列出条目；只返回索引行（标题、类型、标签、ID），默认 20 条。默认只搜当前项目 + 全局；传 `allProjects=true` 可跨所有工作区。 |
 | `get` / `read` | 按 id 读取一条完整记忆（含正文和文件路径）。 |
 | `save` | 新建条目；也可带 `id` 更新。 |
 | `update` | 更新指定条目。 |

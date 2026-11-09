@@ -1,7 +1,7 @@
 {
   "name": "@neko233/dsh-plugin-global-memory",
-  "version": "0.4.0",
-  "description": "Persistent memory for DSH: global personal assets plus project-scoped facts, secure credentials, health progress bars, agent tools, import/export, and Git sync.",
+  "version": "0.5.0",
+  "description": "Persistent memory for DSH: global personal assets, project-scoped facts, cross-workspace search, secure credentials, health progress bars, agent tools, import/export, and Git sync.",
   "type": "module",
   "main": "index.js",
   "exports": {

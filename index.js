@@ -39,7 +39,7 @@ const INDEX_FILE_NAME = 'MEMORY.md'
 const ENTRY_DIR_NAME = 'entries'
 const API_PREFIX = '/api/global-memory'
 const PROMPT_SECTION_ORDER = 210
-const PLUGIN_VERSION = '0.4.0'
+const PLUGIN_VERSION = '0.5.0'
 const HEALTH_STALE_DAYS = 180
 const HEALTH_MIN_CONTENT = 20
 
@@ -1320,6 +1320,7 @@ class GlobalMemoryService {
       entriesDir: this.entriesDir,
       layout: 'index+entries',
       currentProject: this.currentProject(),
+      projects: this.projectSummaries(),
       entries: [...this.entries].map(cloneEntry),
       settings: { ...this.settings },
       stats: this.stats(),
@@ -1373,6 +1374,35 @@ class GlobalMemoryService {
     } catch {
       return this.defaultProject()
     }
+  }
+
+  /** Per-workspace counts for browsing memory outside the current project. */
+  projectSummaries() {
+    const map = new Map()
+    for (const entry of this.entries) {
+      if (entry.scope !== 'project' || typeof entry.project !== 'string' || entry.project.trim() === '') continue
+      const path = normalizeProjectPath(entry.project)
+      const row = map.get(path) ?? {
+        path,
+        label: shortProject(path),
+        active: 0,
+        archived: 0,
+        pinned: 0,
+        lastUpdated: '',
+      }
+      if (entry.status === 'active') {
+        row.active += 1
+        if (entry.pinned) row.pinned += 1
+      } else {
+        row.archived += 1
+      }
+      if (String(entry.updatedAt) > String(row.lastUpdated)) row.lastUpdated = entry.updatedAt
+      map.set(path, row)
+    }
+    return [...map.values()].sort((left, right) => {
+      if (right.active !== left.active) return right.active - left.active
+      return String(right.lastUpdated).localeCompare(String(left.lastUpdated)) || left.path.localeCompare(right.path)
+    })
   }
 
   credentialStore() {
@@ -1541,6 +1571,7 @@ class GlobalMemoryService {
     const scope = validScope(input.scope)
     const status = input.status === 'all' ? 'all' : (validStatus(input.status) ?? 'active')
     const explicitProject = typeof input.project === 'string' ? normalizeProjectPath(input.project) : ''
+    const allProjects = input.allProjects === true || input.project === '*'
     const current = explicitProject !== '' ? explicitProject : (projectContext ?? this.currentProject())
     const pinnedOnly = input.pinned === true
     const limit = clampInt(input.limit, 1, 200, 20)
@@ -1549,12 +1580,12 @@ class GlobalMemoryService {
       if (kind !== undefined && entry.kind !== kind) return false
       if (scope !== undefined) {
         if (entry.scope !== scope) return false
-        if (scope === 'project' && !sameProject(entry.project, current)) return false
-      } else if (entry.scope === 'project' && !sameProject(entry.project, current)) {
+        if (scope === 'project' && !allProjects && !sameProject(entry.project, current)) return false
+      } else if (!allProjects && entry.scope === 'project' && !sameProject(entry.project, current)) {
         return false
       }
       if (pinnedOnly && !entry.pinned) return false
-      if (explicitProject !== '' && entry.scope === 'project' && !sameProject(entry.project, explicitProject)) return false
+      if (!allProjects && explicitProject !== '' && entry.scope === 'project' && !sameProject(entry.project, explicitProject)) return false
       if (query !== '') {
         const haystack = [entry.title, entry.content, entry.kind, entry.scope, entry.project ?? '', entry.tags.join(' ')]
           .join('\n')
@@ -1649,15 +1680,23 @@ class GlobalMemoryService {
     const globalCount = active.filter(entry => entry.scope === 'global').length
     const projectCount = active.length - globalCount
     const projectLabel = project ? shortProject(project) : null
-    const header = [
+    const otherProjects = this.projectSummaries().filter(row => row.active > 0 && !sameProject(row.path, project))
+    const otherEntries = otherProjects.reduce((sum, row) => sum + row.active, 0)
+    const headerLines = [
       '## Persistent memory index (dsh-plugin-global-memory)',
       'Durable memory for this person and the current DSH project. The full text is stored as Markdown files in the memory directory; only this index is loaded into the prompt.',
       `Entries: ${active.length} in scope (${globalCount} global, ${projectCount} project), ${pinnedCount} pinned. Store: ${this.dir}`,
       projectLabel ? `Current project scope: ${projectLabel} (${project}). Project-scoped entries outside it are omitted.` : 'No project scope detected; only true-global entries are shown.',
+    ]
+    if (otherProjects.length > 0) {
+      headerLines.push(`Cross-workspace memory: ${otherEntries} active entr${otherEntries === 1 ? 'y' : 'ies'} in ${otherProjects.length} other project${otherProjects.length === 1 ? '' : 's'}. They are not injected. Use action="search" with allProjects=true (or project="<absolute path>") to browse them.`)
+    }
+    headerLines.push(
       'Before relying on any entry, call the `memory` tool with action="get" and its id (or action="read") to load the full text. Do not guess details from a title.',
       'Use action="search" to find entries. Save durable preferences, conventions, decisions, project facts, and open todos. Credentials belong in the secure credential store, never in Markdown.',
       'When the user says "remember this" (记一下 / 记住), save it. Prefer small, single-topic entries with a clear title and tags. Search first and update an existing entry instead of duplicating it.',
-    ].join('\n')
+    )
+    const header = headerLines.join('\n')
     const lines = [header]
     if (sorted.length === 0) {
       lines.push('', '_No active memory entries in this scope yet. Save durable facts with the memory tool._')
@@ -2219,7 +2258,7 @@ function createMemoryTool(service) {
     description: [
       'Persistent memory for this machine, separated into true-global (personal, cross-project) and project-scoped entries. The prompt shows global entries plus entries for the current project only.',
       'The prompt contains only the memory index. Before relying on an entry, use action="get" (or "read") with its id to load the full Markdown text; do not guess details from a title.',
-      'Use action="search" before answering questions about user preferences, conventions, past decisions, or project facts. Search defaults to global plus the current project.',
+      'Use action="search" before answering questions about user preferences, conventions, past decisions, or project facts. Search defaults to global plus the current project; pass allProjects=true (or project="*") to search every workspace.',
       'Use action="save" when the user asks you to remember something, or states a durable preference, convention, decision, project fact, or open todo. Set scope="project" (and optionally project) for facts that apply only to one workspace; omit scope for true-global personal assets such as SSH identity, accounts, and preferences.',
       'For accounts, passwords, tokens, and SSH secrets, use kind="credential" and pass a secret object. The secret is stored in the DSH credential store; Markdown holds only a reference. Never put a password or token in title, content, tags, or a normal entry.',
       'Keep entries small, single-topic, titled, and tagged. Search first; update an existing entry instead of duplicating it.',
@@ -2239,7 +2278,8 @@ function createMemoryTool(service) {
         content: { type: 'string', description: 'Markdown entry content (required to create).' },
         kind: { type: 'string', enum: KINDS, description: 'Entry kind. Defaults to fact.' },
         scope: { type: 'string', enum: SCOPES, description: 'global (default) or project.' },
-        project: { type: 'string', description: 'Absolute workspace path; required when scope is project.' },
+        project: { type: 'string', description: 'Absolute workspace path; required when scope is project. Use "*" to search every workspace.' },
+        allProjects: { type: 'boolean', description: 'Search or list entries from every workspace, not only the current project. Global entries are always included.' },
         tags: { type: 'array', items: { type: 'string' }, description: 'Short tags, without the leading #.' },
         importance: { type: 'integer', minimum: 1, maximum: 5, description: 'Importance from 1 to 5. Defaults to 3.' },
         pinned: { type: 'boolean', description: 'Pin this entry into the prompt digest, or unpin it.' },
@@ -2386,6 +2426,7 @@ function createMemoryTool(service) {
             message: [
               `Memory: ${stats.active} active, ${stats.archived} archived, ${stats.pinned} pinned, ${stats.projects} project-scoped.`,
               `Current project scope: ${snapshot.currentProject ?? 'not detected (global only)'}.`,
+              `Workspaces: ${snapshot.projects.length} project scope(s); use search allProjects=true to query every workspace.`,
               `Health: ${health.score}/100 (${health.grade}); index coverage ${health.coverage}%, metadata ${health.metadata}%, freshness ${health.freshness}%, prompt budget ${health.promptChars}/${health.promptMaxChars} chars (${health.promptPercent}%).`,
               `Review: ${health.needsReview} entr${health.needsReview === 1 ? 'y' : 'ies'} need attention, ${health.stale} stale, ${health.duplicateGroups} duplicate group(s).`,
               `Store: ${snapshot.storeDir}`,
