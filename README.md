@@ -91,6 +91,25 @@
 
 `cordis.patch.yml` 会把插件插入当前 profile，并带上默认配置。
 
+### 公开发布
+
+- GitHub：<https://github.com/neko233-com/dsh-plugin-global-memory>
+- Release：<https://github.com/neko233-com/dsh-plugin-global-memory/releases/tag/v0.4.0>
+- npm 包名：`@neko233/dsh-plugin-global-memory`
+
+npm 首次发布需要本机先登录：
+
+```bash
+npm login
+npm publish --access public
+```
+
+仓库内的 `.github/workflows/publish.yml` 也支持在 GitHub Release 发布时自动发包；需要在仓库 Secrets 中配置 `NPM_TOKEN`。发布前可先检查包内容：
+
+```bash
+npm pack --dry-run
+```
+
 ---
 
 ## 数据位置
